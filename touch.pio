@@ -1,0 +1,46 @@
+.program touch
+debounce_setup:  
+    pull noblock            ;Use osr as a counter fill with dummy data 
+debounce_loop:
+    out null, 1             ;Tick down osr counter
+    mov y, x
+    in null, 27             ;Pre-pad isr so we don't get leftover data
+    set pindirs, 31         ;Configure all pins as outputs
+    set pins, 31            ;Set all pins high
+    set pindirs, 0 [2]      ;Configure all pins as inputs then no op for two cycles
+    in pins, 5 [6]
+    mov x, isr
+    jmp x!=y, start         ;If input changes during debounce move back to main loop
+    jmp !osre, debounce_loop
+    push block
+.wrap_target
+start:
+    mov y, x
+    in null, 27             ;Pre-pad isr so we don't get leftover data
+    set pindirs, 31         ;Configure all pins as outputs
+    set pins, 31            ;Set all pins high
+    set pindirs, 0 [2]      ;Configure all pins as inputs then no op for two cycles
+    in pins, 5 [6]
+    mov x, isr
+    jmp x!=y, debounce_setup;If input has changed jump to debounce_setup
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO output, and configures the SM to output on a particular pin
+void touch_init(PIO pio,uint sm,uint offset, uint pin, uint num_buttons, float pio_clk_div){
+int i;
+for(i=0; i< num_buttons; i++) {
+    pio_gpio_init(pio, pin + i);
+    gpio_pull_down(pin + i);
+    //gpio_set_drive_stregnth(pin = i, 4);
+    //gpio_set_slew_rate(pin + i);//what rate do we need and what settings can this be?
+    }
+
+pio_sm_config c = touch_program_get_default_config(offset);
+sm_config_set_clkdiv(&c, pio_clk_div); //Tune speed for sensitivity
+sm_config_set_set_pins(&c, pin, num_buttons);
+sm_config_set_in_pins(&c, pin);
+sm_config_set_in_shift(&c, false, false, 32);
+pio_sm_init(pio, sm, offset, &c);
+}
+%}
