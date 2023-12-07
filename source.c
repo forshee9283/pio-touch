@@ -15,9 +15,7 @@
 uint touch_state = 0;
 volatile bool touch_change_flg = 0;
 
-void touch_setup(){
 
-}
 
 void touch_isr_handeler(void){
     while (!pio_sm_is_rx_fifo_empty(TOUCH_PIO, 0)){
@@ -38,6 +36,41 @@ void touch_isr_handeler(void){
     }
 }
 
+int touch_setup(PIO pio_touch,int num_buttons, int start_pin, const float clk_div){
+    if(num_buttons>20){
+        return 1;
+    }
+    int sm;
+    uint offset_touch = pio_add_program(TOUCH_PIO, &touch_program);
+    if(num_buttons>0){
+        sm = pio_claim_unused_sm(pio_touch,true);//Panic if unavailible
+        pio_set_irq0_source_enabled(pio_touch,sm,true);//state machine number happens to be equal to rx fifo not empty bit for that state machine
+        touch_init(pio_touch, sm, offset_touch, start_pin, (num_buttons>5 ? 5: num_buttons), clk_div);
+        pio_sm_set_enabled(pio_touch, sm, true);
+    }
+    if(num_buttons>5){
+        sm = pio_claim_unused_sm(pio_touch,true);//Panic if unavailible
+        pio_set_irq0_source_enabled(pio_touch,sm,true);//state machine number happens to be equal to rx fifo not empty bit for that state machine
+        touch_init(pio_touch, sm, offset_touch, start_pin + 5, (num_buttons>10 ? 5: (num_buttons - 5)), clk_div);
+        pio_sm_set_enabled(pio_touch, sm, true);
+    }
+    if(num_buttons>10){
+        sm = pio_claim_unused_sm(pio_touch,true);//Panic if unavailible
+        pio_set_irq0_source_enabled(pio_touch,sm,true);//state machine number happens to be equal to rx fifo not empty bit for that state machine
+        touch_init(pio_touch, sm, offset_touch, start_pin + 10, (num_buttons>15 ? 5: (num_buttons - 10)), clk_div);
+        pio_sm_set_enabled(pio_touch, sm, true);
+    }
+    if(num_buttons>15){
+        sm = pio_claim_unused_sm(pio_touch,true);//Panic if unavailible
+        pio_set_irq0_source_enabled(pio_touch,sm,true);//state machine number happens to be equal to rx fifo not empty bit for that state machine
+        touch_init(pio_touch, sm, offset_touch, start_pin + 15, (num_buttons-15), clk_div); //get the numbers right
+        pio_sm_set_enabled(pio_touch, sm, true);
+    }
+//Set up pio interrupts
+    irq_set_exclusive_handler(PIO0_IRQ_0,touch_isr_handeler);
+    irq_set_enabled(PIO0_IRQ_0, true);   
+}
+
 int main(){
     stdio_init_all();
     static const float pio_clk_div = 40;
@@ -52,26 +85,7 @@ int main(){
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
-//Set up pio interrupts
-    //pio_set_irq0_source_mask_enabled(TOUCH_PIO, pis_sm0_rx_fifo_not_empty|pis_sm1_rx_fifo_not_empty|pis_sm2_rx_fifo_not_empty|pis_sm3_rx_fifo_not_empty,true);
-    //pio_set_irq0_source_mask_enabled(TOUCH_PIO, 0xf,true);
-    pio_set_irq0_source_enabled(TOUCH_PIO,pis_sm0_rx_fifo_not_empty,true);
-    pio_set_irq0_source_enabled(TOUCH_PIO,pis_sm1_rx_fifo_not_empty,true);
-    pio_set_irq0_source_enabled(TOUCH_PIO,pis_sm2_rx_fifo_not_empty,true);
-    //pio_set_irq0_source_mask_enabled(TOUCH_PIO,pis_sm2_rx_fifo_not_empty,true);
-    irq_set_exclusive_handler(PIO0_IRQ_0,touch_isr_handeler);
-    irq_set_enabled(PIO0_IRQ_0, true);
-
-//Set up capasitive touch pio
-    uint offset_touch = pio_add_program(TOUCH_PIO, &touch_program);
-    touch_init(TOUCH_PIO, 0, offset_touch, 2, 5, pio_clk_div);
-    touch_init(TOUCH_PIO, 1, offset_touch, 7, 5, pio_clk_div);
-    touch_init(TOUCH_PIO, 2, offset_touch, 12, 2, pio_clk_div);
-    //touch_init(TOUCH_PIO, 3, offset_touch, 13, 1, pio_clk_div);
-    pio_sm_set_enabled(TOUCH_PIO, 0, true); //Enable first state machine of TOUCH_PIO
-    pio_sm_set_enabled(TOUCH_PIO, 1, true);
-    pio_sm_set_enabled(TOUCH_PIO, 2, true);
-    //pio_sm_set_enabled(TOUCH_PIO, 3, true);
+    touch_setup(TOUCH_PIO, 12, 2, pio_clk_div);
 
     while (true){
         if(touch_change_flg){
