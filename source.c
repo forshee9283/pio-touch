@@ -15,6 +15,7 @@
 #define TOUCH_NUMBER 12 //number of sequential touch buttons
 
 volatile uint touch_state = 0;
+volatile uint touch_state_last =0;
 volatile bool touch_change_flg = 0;
 
 void touch_isr_handeler(void){ //This assumes that the state machines are 0-2 in order and that all three are used.
@@ -27,7 +28,10 @@ void touch_isr_handeler(void){ //This assumes that the state machines are 0-2 in
     if(!pio_sm_is_rx_fifo_empty(TOUCH_PIO, 2)){
         touch_state = (touch_state & 0xffff83ff)|(pio_sm_get(TOUCH_PIO,2)<<10);
     }
-    touch_change_flg = 1;
+    if(touch_state!=touch_state_last){
+        touch_change_flg = 1;
+    }
+    touch_state_last = touch_state;
     //printf("touch_state: %20b isr\n", touch_state);
 }
 
@@ -68,7 +72,7 @@ int touch_setup(PIO pio_touch,int num_buttons, int start_pin, const float clk_di
 
 int main(){
     stdio_init_all();
-    static const float pio_clk_div = 40; //was 40, 20 is too sensitive 50 is not sensitive enough
+    static const float pio_clk_div = 40; //This should be tuned for the size of the buttons
     gpio_init(LED_1);
     gpio_set_dir(LED_1, GPIO_OUT);
     gpio_init(LED_2);

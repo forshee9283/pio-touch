@@ -1,9 +1,9 @@
 .program touch
 debounce_setup:  
-    pull noblock            ;Use osr as a counter fill with dummy data 
+    pull noblock            ;Use osr as a counter fill with dummy data
+    mov y, x 
 debounce_loop:
     out null, 1             ;Tick down osr counter
-    mov y, x
     in null, 27             ;Pre-pad isr so we don't get leftover data
     set pindirs, 31         ;Configure all pins as outputs
     set pins, 31            ;Set all pins high
