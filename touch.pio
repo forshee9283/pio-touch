@@ -10,7 +10,8 @@ debounce_loop:
     set pindirs, 0 [2]      ;Configure all pins as inputs then no op for two cycles
     in pins, 5 [6]
     mov x, isr
-    jmp x!=y, start         ;If input changes during debounce move back to main loop
+    ;jmp x!=y, start         ;If input changes during debounce move back to main loop
+    jmp x!=y, debounce_setup ;If input changes during debounce reset loop count
     jmp !osre, debounce_loop
     push block
 .wrap_target
